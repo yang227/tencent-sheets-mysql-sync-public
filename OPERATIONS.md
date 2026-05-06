@@ -1,179 +1,79 @@
 # 运维手册
 
-本文档用于说明本项目在开发、测试和部署阶段的最小运维要求，重点覆盖本地启动、配置管理、敏感信息管理、健康检查与故障定位。
+## 1. 目标
 
-## 1. 配置原则
+本手册只覆盖与部署直接相关的最小动作：
 
-### 1.1 不提交真实敏感信息
+- 初始化本地运行环境
+- 启动元数据库、后端、前端
+- 做基础健康检查
+- 生成 3 个 GitHub 发布版本
 
-以下内容不得以真实值进入 Git 仓库：
+## 2. 部署矩阵
 
-- 腾讯应用 ID
-- 腾讯 Open ID
-- 腾讯访问 Token
-- MySQL root 密码
-- 任意环境的业务数据库账号密码
-- 加密密钥
+| 场景 | Windows | Linux / macOS |
+| --- | --- | --- |
+| 初始化环境 | `scripts/bootstrap_local.ps1` | `scripts/bootstrap_local.sh` |
+| 启动元数据库 | `scripts/start_metadata_mysql.ps1` | `scripts/start_metadata_mysql.sh` |
+| 启动后端 | `scripts/start_backend.ps1` | `scripts/start_backend.sh` |
+| 启动前端 | `scripts/start_frontend.ps1` | `scripts/start_frontend.sh` |
+| 一键联调 | `scripts/run_local_stack.ps1` | `scripts/run_local_stack.sh` |
+| 部署检查 | `scripts/deployment_check.ps1` | `scripts/deployment_check.sh` |
 
-仓库中应只保留：
+## 3. 启动顺序
 
-- `.env.example`
-- `config.example.yaml`
-- 脱敏后的文档和脚本
+1. 执行 `bootstrap_local`
+2. 补齐 `.env` 和 `config.yaml`
+3. 启动 `start_metadata_mysql`
+4. 启动 `start_backend`
+5. 需要前端开发时再启动 `start_frontend`
 
-### 1.2 推荐配置方式
+## 4. 关键端口
 
-本地开发：
+- `8083`: FastAPI 服务
+- `5173`: Vite 开发服务器
+- `13306`: 元数据 MySQL
 
-```powershell
-Copy-Item .env.example .env
-Copy-Item config.example.yaml config.yaml
-```
+## 5. Docker 说明
 
-生产部署：
+元数据库由 `docker-compose.metadata.yml` 管理：
 
-- 使用 CI/CD Secret
-- 使用容器编排平台 Secret
-- 使用专门的配置中心或密钥管理服务
+- 容器名：`tencent-sync-metadata-mysql`
+- 本地端口：`127.0.0.1:13306`
+- 初始化脚本：
+  - `migrations/init.sql`
+  - `migrations/add_config_tables.sql`
 
-## 2. 本地启动流程
+## 6. 最小验收
 
-### 2.1 启动元数据库
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\start_metadata_mysql.ps1
-```
-
-脚本依赖：
-
-- Docker Desktop 已启动
-- `.env` 中存在 `METADATA_MYSQL_ROOT_PASSWORD`
-
-### 2.2 启动后端
+后端启动后执行：
 
 ```bash
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8083 --reload
+curl http://127.0.0.1:8083/health
+curl http://127.0.0.1:8083/api/workbench/summary
 ```
 
-### 2.3 启动前端开发环境
+浏览器访问：
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+- `http://127.0.0.1:8083/`
+- `http://127.0.0.1:5173/`
 
-### 2.4 访问入口
+## 7. 发布前检查
 
-- 工作台首页：`http://127.0.0.1:8083/`
-- 健康检查：`http://127.0.0.1:8083/health`
-- 工作台总览：`http://127.0.0.1:8083/api/workbench/summary`
+必须确认：
 
-## 3. Docker 元数据库说明
+- `.env` 未提交
+- `config.yaml` 未提交真实值
+- `frontend/dist` 为当前构建结果
+- `docker-compose.metadata.yml` 没有写入真实密码
+- 三个平台脚本都存在
 
-### 3.1 Compose 文件
+## 8. 版本发布
 
-元数据库使用 `docker-compose.metadata.yml` 管理，默认容器名：
+执行变体生成脚本后，会得到三个目录：
 
-```text
-tencent-sync-metadata-mysql
-```
+- `D:\Downloads\tencent-sheets-mysql-sync-private`
+- `D:\Downloads\tencent-sheets-mysql-sync-public`
+- `D:\Downloads\tencent-sheets-mysql-sync-github`
 
-### 3.2 端口
-
-默认映射：
-
-```text
-127.0.0.1:13306 -> 3306
-```
-
-### 3.3 初始化内容
-
-启动脚本会在数据库可用后执行：
-
-- `migrations/init.sql`
-- `migrations/add_config_tables.sql`
-
-## 4. 健康检查
-
-### 4.1 服务进程
-
-```powershell
-Get-Process | Where-Object { $_.ProcessName -eq 'python' }
-```
-
-### 4.2 端口检查
-
-```powershell
-Test-NetConnection -ComputerName 127.0.0.1 -Port 8083
-Test-NetConnection -ComputerName 127.0.0.1 -Port 13306
-```
-
-### 4.3 HTTP 检查
-
-```powershell
-Invoke-WebRequest -Uri 'http://127.0.0.1:8083/health' -UseBasicParsing
-Invoke-RestMethod -Uri 'http://127.0.0.1:8083/api/workbench/summary'
-```
-
-## 5. 常见故障
-
-### 5.1 页面能打开但资源 404
-
-排查点：
-
-- 是否使用了正确的 `app.main:app` 启动方式
-- `frontend/dist/assets` 是否存在
-- 后端是否正确挂载 `/assets`
-
-### 5.2 首页打开慢或接口超时
-
-排查点：
-
-- `13306` 是否可用
-- Docker Desktop 是否已经完全启动
-- `tencent-sync-metadata-mysql` 容器是否在运行
-
-### 5.3 启动脚本报错
-
-优先检查：
-
-- `.env` 是否存在
-- `METADATA_MYSQL_ROOT_PASSWORD` 是否已填写
-- Docker daemon 是否正常
-
-### 5.4 腾讯接口测试失败
-
-需要区分两类问题：
-
-- 凭据本身无效
-- 旧探针接口错误或文档接口口径不一致
-
-不要仅依据单个“测试连接”结果判断整条读写链路已经可用。
-
-## 6. 提交前检查
-
-提交到 GitHub 之前，至少执行以下检查：
-
-```bash
-git status
-git diff -- .env config.yaml docker-compose.metadata.yml README.md OPERATIONS.md
-```
-
-确认：
-
-- `.env` 中没有真实值
-- `config.yaml` 中没有真实值
-- 文档里没有真实密码、真实 Token、真实主机
-- 日志文件和缓存文件没有进入暂存区
-
-## 7. 最小发布建议
-
-建议至少补齐以下内容后再做生产发布：
-
-- 真实联动验收记录
-- 发布分支策略
-- CI 测试与镜像构建
-- 权限控制
-- 告警通知
-- 数据备份策略
+随后分别进入各目录执行 Git 提交与推送。

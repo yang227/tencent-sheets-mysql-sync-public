@@ -24,7 +24,9 @@ $commonExcludeFiles = @(
     "server8083.err.log",
     "server8083.out.log",
     "server8090.err.log",
-    "server8090.out.log"
+    "server8090.out.log",
+    "server5173.err.log",
+    "server5173.out.log"
 )
 
 $publicExcludeFiles = @(
@@ -42,6 +44,7 @@ $githubKeepTopLevelFiles = @(
     "CONTRIBUTING.md",
     "docker-compose.metadata.yml",
     "OPERATIONS.md",
+    "PROJECT_VARIANTS.md",
     "pytest.ini",
     "README.md",
     "requirements.txt",
@@ -52,6 +55,7 @@ $githubKeepDirectories = @(
     "app",
     "frontend",
     "migrations",
+    "scripts",
     "tests"
 )
 
@@ -61,9 +65,55 @@ function Reset-TargetDirectory {
     )
 
     if (Test-Path $Path) {
+        Get-ChildItem -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue | ForEach-Object {
+            try {
+                $_.IsReadOnly = $false
+            }
+            catch {
+            }
+        }
         Remove-Item -LiteralPath $Path -Recurse -Force
     }
     New-Item -ItemType Directory -Path $Path | Out-Null
+}
+
+function Copy-DirectoryTree {
+    param(
+        [string]$SourcePath,
+        [string]$DestinationPath,
+        [string[]]$ExcludeDirs = @(),
+        [string[]]$ExcludeFiles = @()
+    )
+
+    New-Item -ItemType Directory -Path $DestinationPath -Force | Out-Null
+
+    $arguments = @(
+        $SourcePath,
+        $DestinationPath,
+        "/E",
+        "/NFL",
+        "/NDL",
+        "/NJH",
+        "/NJS",
+        "/NC",
+        "/NS",
+        "/NP"
+    )
+
+    if ($ExcludeDirs.Count -gt 0) {
+        $arguments += "/XD"
+        $arguments += $ExcludeDirs
+    }
+
+    if ($ExcludeFiles.Count -gt 0) {
+        $arguments += "/XF"
+        $arguments += $ExcludeFiles
+    }
+
+    & robocopy @arguments | Out-Null
+    if ($LASTEXITCODE -gt 7) {
+        throw "robocopy failed for $SourcePath"
+    }
 }
 
 function Remove-ExcludedContent {
@@ -104,7 +154,12 @@ function Copy-ProjectVariant {
         }
 
         $destination = Join-Path $TargetPath $_.Name
-        Copy-Item -LiteralPath $_.FullName -Destination $destination -Recurse -Force
+        if ($_.PSIsContainer) {
+            Copy-DirectoryTree -SourcePath $_.FullName -DestinationPath $destination -ExcludeDirs $commonExcludeDirs -ExcludeFiles $allExcludeFiles
+        }
+        else {
+            Copy-Item -LiteralPath $_.FullName -Destination $destination -Force
+        }
     }
 
     Remove-ExcludedContent -TargetPath $TargetPath -ExcludeFiles $allExcludeFiles
@@ -126,18 +181,9 @@ function Copy-GitHubVariant {
 
     foreach ($dirName in $githubKeepDirectories) {
         $sourcePath = Join-Path $sourceRoot $dirName
-        if (-not (Test-Path $sourcePath)) {
-            continue
+        if (Test-Path $sourcePath) {
+            Copy-DirectoryTree -SourcePath $sourcePath -DestinationPath (Join-Path $TargetPath $dirName) -ExcludeDirs $commonExcludeDirs -ExcludeFiles ($commonExcludeFiles + $publicExcludeFiles)
         }
-
-        Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $TargetPath $dirName) -Recurse -Force
-    }
-
-    $scriptsTarget = Join-Path $TargetPath "scripts"
-    New-Item -ItemType Directory -Path $scriptsTarget | Out-Null
-    $startupScript = Join-Path $sourceRoot "scripts\start_metadata_mysql.ps1"
-    if (Test-Path $startupScript) {
-        Copy-Item -LiteralPath $startupScript -Destination (Join-Path $scriptsTarget "start_metadata_mysql.ps1") -Force
     }
 
     Remove-ExcludedContent -TargetPath $TargetPath -ExcludeFiles ($commonExcludeFiles + $publicExcludeFiles)
@@ -149,13 +195,12 @@ Copy-GitHubVariant -TargetPath $githubTarget
 
 $privateReadme = @"
 # 私有版说明
-
 这是面向你自己持续开发和协作的私有项目版本。
 
-特征：
+特点：
 - 保留项目记忆文件
 - 保留内部过程文档
-- 适合继续迭代、排查、补充验证记录
+- 适合继续迭代、排查和补充验证记录
 
 包含的记忆文件：
 - PROJECT_MEMORY_RULES.md
@@ -164,13 +209,12 @@ $privateReadme = @"
 
 $publicReadme = @"
 # 公开版说明
-
 这是面向公共分发或公开仓库的项目版本。
 
-特征：
+特点：
 - 不包含任何项目记忆文件
-- 不包含本地 .env
-- 不包含本地缓存、日志、虚拟环境
+- 不包含本地 `.env`
+- 不包含本地缓存、日志和虚拟环境
 
 明确移除：
 - PROJECT_MEMORY_RULES.md
@@ -179,15 +223,14 @@ $publicReadme = @"
 "@
 
 $githubReadme = @"
-# GitHub 公开版说明
+# GitHub 精简版说明
+这是面向 GitHub 发布的精简项目版本。
 
-这是面向 GitHub 发布的精简版项目。
-
-特征：
-- 只保留源码、前端、测试、迁移、必要脚本与对外文档
-- 不包含任何记忆文件
-- 不包含本地 .env
-- 不包含内部过程报告、迭代记录、交付草稿和杂项脚本
+特点：
+- 只保留源码、前端、测试、迁移、部署脚本和对外文档
+- 不包含任何项目记忆文件
+- 不包含本地 `.env`
+- 不包含内部过程报告、交付草稿和杂项脚本
 "@
 
 Set-Content -LiteralPath (Join-Path $privateTarget "VARIANT.md") -Value $privateReadme -Encoding UTF8

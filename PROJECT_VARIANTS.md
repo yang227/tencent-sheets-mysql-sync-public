@@ -1,72 +1,60 @@
-# 项目拆分说明
+# 项目版本说明
 
-本项目支持拆分为三套目录。
+本项目只维护 3 个 GitHub 仓库版本。
 
 ## 1. 私有版
 
-目录名：
+目录：
 
-```text
-tencent-sheets-mysql-sync-private
-```
+`D:\Downloads\tencent-sheets-mysql-sync-private`
 
 用途：
 
-- 面向你自己继续开发
-- 保留项目级记忆
-- 保留内部过程记录
+- 自己继续开发
+- 保留内部迭代资料
+- 保留项目记忆文件
 
-保留文件：
+包含：
 
 - `PROJECT_MEMORY_RULES.md`
 - `AGENT_MEMORY_LOG.md`
-- `.env`
+- 源码、前端、测试、文档、脚本
 
 ## 2. 公开版
 
-目录名：
+目录：
 
-```text
-tencent-sheets-mysql-sync-public
-```
+`D:\Downloads\tencent-sheets-mysql-sync-public`
 
 用途：
 
-- 面向公共仓库
-- 面向外部演示或分发
+- 对外共享
+- 不暴露项目记忆
 
-公开版约束：
-
-- 不包含任何记忆文件
-- 不包含 `.env`
-- 不包含本地日志、缓存、虚拟环境
-
-明确移除：
+移除：
 
 - `PROJECT_MEMORY_RULES.md`
 - `AGENT_MEMORY_LOG.md`
 - `.env`
 
-## 3. GitHub 精简公开版
+## 3. GitHub 精简版
 
-目录名：
+目录：
 
-```text
-tencent-sheets-mysql-sync-github
-```
+`D:\Downloads\tencent-sheets-mysql-sync-github`
 
 用途：
 
-- 面向 GitHub 正式发布
-- 只保留真正适合公开仓库的文件
+- 面向 GitHub 公开发布
+- 只保留真正需要对外展示和运行的内容
 
-保留内容：
+保留：
 
 - `app/`
 - `frontend/`
 - `migrations/`
+- `scripts/`
 - `tests/`
-- `scripts/start_metadata_mysql.ps1`
 - `README.md`
 - `OPERATIONS.md`
 - `TROUBLESHOOTING.md`
@@ -79,21 +67,14 @@ tencent-sheets-mysql-sync-github
 - `requirements.txt`
 - `pytest.ini`
 
-移除内容：
-
-- 所有记忆文件
-- 所有内部迭代报告
-- 所有交付草稿和复盘文档
-- `.env`
-- 本地日志、缓存、虚拟环境
-- 杂项辅助脚本
-
 ## 4. 生成方式
-
-执行：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\create_project_variants.ps1
 ```
 
-脚本会在当前项目的同级目录生成三套目录。
+## 5. 维护原则
+
+- 以后只更新这 3 个仓库
+- Windows 和 Linux/macOS 脚本必须同步存在
+- 公开仓库不得包含记忆文件、本地日志、缓存、虚拟环境和真实配置
