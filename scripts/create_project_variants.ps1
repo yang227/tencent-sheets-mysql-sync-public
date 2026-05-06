@@ -65,6 +65,25 @@ function Reset-TargetDirectory {
     )
 
     if (Test-Path $Path) {
+        if (Test-Path (Join-Path $Path ".git")) {
+            Get-ChildItem -LiteralPath $Path -Force | Where-Object { $_.Name -ne ".git" } | ForEach-Object {
+                Get-ChildItem -LiteralPath $_.FullName -Recurse -Force -ErrorAction SilentlyContinue | ForEach-Object {
+                    try {
+                        $_.IsReadOnly = $false
+                    }
+                    catch {
+                    }
+                }
+                try {
+                    $_.IsReadOnly = $false
+                }
+                catch {
+                }
+                Remove-Item -LiteralPath $_.FullName -Recurse -Force
+            }
+            return
+        }
+
         Get-ChildItem -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue | ForEach-Object {
             try {
                 $_.IsReadOnly = $false

@@ -16,6 +16,11 @@ app:
   port: 8083
   webhook_base_url: "https://your-domain.example.com/webhook/tencent"
 
+frontend:
+  host: "127.0.0.1"
+  port: 5173
+  backend_url: "http://127.0.0.1:8083"
+
 sync:
   default_poll_interval: 30
   batch_size: 100

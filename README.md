@@ -8,6 +8,11 @@
 - 同步配置、字段映射、任务管理
 - Linux / macOS / Windows 三平台本地部署脚本
 
+当前部署逻辑不再把端口、容器名、镜像名、数据库名写死在脚本里：
+
+- `config.yaml` 控制后端和前端开发服务参数
+- `.env` 控制 Docker 元数据库依赖参数
+
 ## 1. 项目结构
 
 ```text
@@ -50,11 +55,24 @@ chmod +x scripts/*.sh
   - `TENCENT_DOCS_ACCESS_TOKEN`
   - `ENCRYPTION_KEY`
   - `METADATA_MYSQL_ROOT_PASSWORD`
+  - `METADATA_MYSQL_CONTAINER_NAME`
+  - `METADATA_MYSQL_IMAGE`
+  - `METADATA_MYSQL_PORT`
+  - `METADATA_MYSQL_DATABASE`
+  - `METADATA_MYSQL_ROOT_USER`
+  - `METADATA_MYSQL_HOST`
+  - `METADATA_MYSQL_READY_TIMEOUT`
+  - `METADATA_DOCKER_COMPOSE_FILE`
 - `config.yaml`
   - `database.password`
   - `tencent.app_id`
   - `tencent.open_id`
   - `tencent.callback_token`
+  - `app.host`
+  - `app.port`
+  - `frontend.host`
+  - `frontend.port`
+  - `frontend.backend_url`
 
 ## 4. 三平台部署脚本
 

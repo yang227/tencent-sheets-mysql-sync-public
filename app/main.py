@@ -111,9 +111,10 @@ app.mount("/static", StaticFiles(directory=LEGACY_STATIC_DIR, html=True), name="
 if __name__ == "__main__":
     import uvicorn
 
+    runtime_config = get_config()
     uvicorn.run(
         "app.main:app",
-        host="0.0.0.0",
-        port=8083,
+        host=runtime_config.app.host,
+        port=runtime_config.app.port,
         reload=True,
     )

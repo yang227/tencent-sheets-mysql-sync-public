@@ -6,6 +6,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${PROJECT_ROOT}"
 
+if command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="python"
+elif command -v python3 >/dev/null 2>&1; then
+  PYTHON_BIN="python3"
+else
+  echo "[FAIL] python or python3 is not available" >&2
+  exit 1
+fi
+
+read_runtime() {
+  "${PYTHON_BIN}" "${SCRIPT_DIR}/runtime_settings.py"
+}
+
+APP_URL_HOST="$(read_runtime | "${PYTHON_BIN}" -c "import json,sys; print(json.load(sys.stdin)['app_url_host'])")"
+APP_PORT="$(read_runtime | "${PYTHON_BIN}" -c "import json,sys; print(json.load(sys.stdin)['app_port'])")"
+
 ok() {
   echo "[OK] $1"
 }
@@ -18,12 +34,7 @@ fail() {
   echo "[FAIL] $1" >&2
 }
 
-if command -v python3 >/dev/null 2>&1; then
-  ok "$(python3 --version)"
-else
-  fail "python3 is not available"
-  exit 1
-fi
+ok "$("${PYTHON_BIN}" --version)"
 
 if command -v node >/dev/null 2>&1; then
   ok "Node.js $(node --version)"
@@ -54,7 +65,7 @@ else
   exit 1
 fi
 
-if curl -fsS --max-time 3 http://127.0.0.1:8083/health >/dev/null 2>&1; then
+if curl -fsS --max-time 3 "http://${APP_URL_HOST}:${APP_PORT}/health" >/dev/null 2>&1; then
   ok "backend health endpoint is reachable"
 else
   warn "backend health endpoint is not reachable"

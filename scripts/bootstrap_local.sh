@@ -6,6 +6,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${PROJECT_ROOT}"
 
+if command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="python"
+elif command -v python3 >/dev/null 2>&1; then
+  PYTHON_BIN="python3"
+else
+  echo "python or python3 is required." >&2
+  exit 1
+fi
+
 if [[ ! -f ".env" ]]; then
   cp .env.example .env
   echo "Created .env from .env.example"
@@ -17,7 +26,7 @@ if [[ ! -f "config.yaml" ]]; then
 fi
 
 if [[ ! -d ".venv" ]]; then
-  python3 -m venv .venv
+  "${PYTHON_BIN}" -m venv .venv
 fi
 
 source .venv/bin/activate

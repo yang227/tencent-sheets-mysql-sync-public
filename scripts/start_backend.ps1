@@ -3,4 +3,5 @@ $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $projectRoot
 
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8083 --reload
+$runtime = python .\scripts\runtime_settings.py | ConvertFrom-Json
+python -m uvicorn app.main:app --host $runtime.app_host --port $runtime.app_port --reload

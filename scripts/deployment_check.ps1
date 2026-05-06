@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $projectRoot
+$runtime = python .\scripts\runtime_settings.py | ConvertFrom-Json
 
 function Write-Ok($message) {
     Write-Host "[OK] $message" -ForegroundColor Green
@@ -71,7 +72,7 @@ else {
 }
 
 try {
-    $health = Invoke-RestMethod -Uri "http://127.0.0.1:8083/health" -TimeoutSec 3
+    $health = Invoke-RestMethod -Uri "http://$($runtime.app_url_host):$($runtime.app_port)/health" -TimeoutSec 3
     Write-Ok "backend health endpoint reachable: $($health.status)"
 }
 catch {

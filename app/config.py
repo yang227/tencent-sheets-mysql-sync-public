@@ -49,6 +49,12 @@ class AppConfig(BaseModel):
     webhook_base_url: str = "https://localhost:8080"
 
 
+class FrontendConfig(BaseModel):
+    host: str = "127.0.0.1"
+    port: int = 5173
+    backend_url: str = ""
+
+
 class SyncConfig(BaseModel):
     default_poll_interval: int = 30
     batch_size: int = 100
@@ -59,6 +65,7 @@ class Settings(BaseModel):
     database: DatabaseConfig = DatabaseConfig()
     tencent: TencentConfig = TencentConfig()
     app: AppConfig = AppConfig()
+    frontend: FrontendConfig = FrontendConfig()
     sync: SyncConfig = SyncConfig()
 
 

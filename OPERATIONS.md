@@ -28,6 +28,12 @@
 4. 启动 `start_backend`
 5. 需要前端开发时再启动 `start_frontend`
 
+说明：
+
+- 后端地址和端口来自 `config.yaml > app`
+- 前端开发地址和端口来自 `config.yaml > frontend`
+- Docker 元数据库容器名、镜像、端口、数据库名来自 `.env`
+
 ## 4. 关键端口
 
 - `8083`: FastAPI 服务
