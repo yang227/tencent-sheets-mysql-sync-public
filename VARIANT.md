@@ -1,7 +1,13 @@
-﻿# 鍏紑鐗堣鏄?杩欐槸闈㈠悜鍏叡鍒嗗彂鎴栧叕寮€浠撳簱鐨勯」鐩増鏈€?
-鐗圭偣锛?- 涓嶅寘鍚换浣曢」鐩蹇嗘枃浠?- 涓嶅寘鍚湰鍦?.env
-- 涓嶅寘鍚湰鍦扮紦瀛樸€佹棩蹇楀拰铏氭嫙鐜
+﻿# Public Variant
 
-鏄庣‘绉婚櫎锛?- PROJECT_MEMORY_RULES.md
+This variant is for external sharing with the full project structure.
+
+It removes:
+- project memory files
+- local .env
+- local caches, logs, and virtual environments
+
+Removed files:
+- PROJECT_MEMORY_RULES.md
 - AGENT_MEMORY_LOG.md
 - .env

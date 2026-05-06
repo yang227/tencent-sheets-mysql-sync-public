@@ -3,7 +3,7 @@ Sync scheduler — runs periodic sync jobs for all active configurations.
 """
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from typing import Dict
+from typing import Dict, Optional
 import asyncio
 import logging
 import time
@@ -87,7 +87,7 @@ class SyncScheduler:
     async def _run_sync(cls, config_id: int) -> None:
         """Execute a single sync run for one config."""
         logger.info(f"[Config {config_id}] Scheduled sync starting")
-        engine: SyncEngine | None = None
+        engine: Optional[SyncEngine] = None
         try:
             engine = SyncEngine(config_id=config_id)
             engine._ensure_config()

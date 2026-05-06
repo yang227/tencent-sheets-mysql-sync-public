@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -35,15 +36,17 @@ def wait_for_mysql(host: str, port: int, user: str, password: str, database: str
     raise RuntimeError(f"MySQL did not become ready in {timeout_seconds}s: {last_error}")
 
 
-def apply_sql_file(connection, path: Path) -> None:
-    cursor = connection.cursor()
-    try:
-        sql = path.read_text(encoding="utf-8")
-        for _ in cursor.execute(sql, multi=True):
-            pass
-        connection.commit()
-    finally:
-        cursor.close()
+def apply_sql_file(host: str, port: int, user: str, password: str, database: str, path: Path) -> None:
+    sql = path.read_text(encoding="utf-8")
+    command = [
+        "mysql",
+        f"--host={host}",
+        f"--port={port}",
+        f"--user={user}",
+        f"--password={password}",
+        database,
+    ]
+    subprocess.run(command, input=sql, text=True, check=True)
 
 
 def main() -> None:
@@ -59,18 +62,22 @@ def main() -> None:
         timeout_seconds=timeout_seconds,
     )
 
-    conn = mysql.connector.connect(
-        host=config.database.host,
-        port=config.database.port,
-        user=config.database.user,
-        password=config.database.password,
-        database=config.database.name,
+    apply_sql_file(
+        config.database.host,
+        config.database.port,
+        config.database.user,
+        config.database.password,
+        config.database.name,
+        PROJECT_ROOT / "migrations" / "init.sql",
     )
-    try:
-        apply_sql_file(conn, PROJECT_ROOT / "migrations" / "init.sql")
-        apply_sql_file(conn, PROJECT_ROOT / "migrations" / "add_config_tables.sql")
-    finally:
-        conn.close()
+    apply_sql_file(
+        config.database.host,
+        config.database.port,
+        config.database.user,
+        config.database.password,
+        config.database.name,
+        PROJECT_ROOT / "migrations" / "add_config_tables.sql",
+    )
 
 
 if __name__ == "__main__":

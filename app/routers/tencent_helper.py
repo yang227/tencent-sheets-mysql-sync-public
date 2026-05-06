@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query
 
@@ -37,7 +37,7 @@ async def fetch_sheet_fields(
     spreadsheet_id: str,
     sheet_name: str,
     header_row: int,
-    tencent_config_id: int | None = None,
+    tencent_config_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     try:
         if tencent_config_id:
@@ -83,7 +83,7 @@ def fetch_mysql_fields(
     db: MySQLService,
     table_name: str,
     database: str,
-    mysql_config_id: int | None = None,
+    mysql_config_id: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     runtime_db = (
         MySQLConfigService(db).build_mysql_service(mysql_config_id)
@@ -161,7 +161,7 @@ async def get_sheet_fields(
     spreadsheetId: str = Query(..., description="Tencent spreadsheet ID"),
     sheetName: str = Query(..., description="Sheet ID or sheet name"),
     headerRow: int = Query(1, ge=1, description="Header row number"),
-    tencentConfigId: int | None = Query(None, description="Saved Tencent config ID"),
+    tencentConfigId: Optional[int] = Query(None, description="Saved Tencent config ID"),
     db: MySQLService = Depends(get_db),
 ):
     return await fetch_sheet_fields(db, spreadsheetId, sheetName, headerRow, tencentConfigId)
@@ -172,7 +172,7 @@ async def get_sheet_header(
     spreadsheetId: str = Query(..., description="Tencent spreadsheet ID"),
     sheetName: str = Query(..., description="Sheet ID or sheet name"),
     headerRow: int = Query(1, ge=1, description="Header row number"),
-    tencentConfigId: int | None = Query(None, description="Saved Tencent config ID"),
+    tencentConfigId: Optional[int] = Query(None, description="Saved Tencent config ID"),
     db: MySQLService = Depends(get_db),
 ):
     result = await fetch_sheet_fields(db, spreadsheetId, sheetName, headerRow, tencentConfigId)
@@ -195,8 +195,8 @@ async def auto_map_fields(
     tableName: str = Query(..., description="MySQL table name"),
     database: str = Query("", description="MySQL database name"),
     headerRow: int = Query(1, ge=1, description="Header row number"),
-    tencentConfigId: int | None = Query(None, description="Saved Tencent config ID"),
-    mysqlConfigId: int | None = Query(None, description="Saved MySQL config ID"),
+    tencentConfigId: Optional[int] = Query(None, description="Saved Tencent config ID"),
+    mysqlConfigId: Optional[int] = Query(None, description="Saved MySQL config ID"),
     db: MySQLService = Depends(get_db),
 ):
     sheet_result = await fetch_sheet_fields(db, spreadsheetId, sheetName, headerRow, tencentConfigId)

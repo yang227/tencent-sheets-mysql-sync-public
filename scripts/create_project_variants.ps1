@@ -216,43 +216,56 @@ Copy-ProjectVariant -TargetPath $publicTarget -ExtraExcludeFiles $publicExcludeF
 Copy-GitHubVariant -TargetPath $githubTarget
 
 $privateReadme = @"
-# 私有版说明
-这是面向你自己持续开发和协作的私有项目版本。
+# Private Variant
 
-特点：
-- 保留项目记忆文件
-- 保留内部过程文档
-- 适合继续迭代、排查和补充验证记录
+This variant is for internal development and ongoing iteration.
 
-包含的记忆文件：
+It keeps:
+- project memory files
+- internal documentation
+- source code, frontend, tests, scripts, and operations docs
+
+Included memory files:
 - PROJECT_MEMORY_RULES.md
 - AGENT_MEMORY_LOG.md
 "@
 
 $publicReadme = @"
-# 公开版说明
-这是面向公共分发或公开仓库的项目版本。
+# Public Variant
 
-特点：
-- 不包含任何项目记忆文件
-- 不包含本地 `.env`
-- 不包含本地缓存、日志和虚拟环境
+This variant is for external sharing with the full project structure.
 
-明确移除：
+It removes:
+- project memory files
+- local .env
+- local caches, logs, and virtual environments
+
+Removed files:
 - PROJECT_MEMORY_RULES.md
 - AGENT_MEMORY_LOG.md
 - .env
 "@
 
 $githubReadme = @"
-# GitHub 精简版说明
-这是面向 GitHub 发布的精简项目版本。
+# GitHub Minimal Variant
 
-特点：
-- 只保留源码、前端、测试、迁移、部署脚本和对外文档
-- 不包含任何项目记忆文件
-- 不包含本地 `.env`
-- 不包含内部过程报告、交付草稿和杂项脚本
+This variant is for GitHub publication and keeps only files that are appropriate for public delivery.
+
+It keeps:
+- source code
+- frontend assets
+- migrations
+- scripts
+- tests
+- Docker files
+- public-facing documentation
+
+It removes:
+- project memory files
+- local .env
+- internal iteration reports
+- temporary repair scripts
+- local logs and caches
 "@
 
 Set-Content -LiteralPath (Join-Path $privateTarget "VARIANT.md") -Value $privateReadme -Encoding UTF8

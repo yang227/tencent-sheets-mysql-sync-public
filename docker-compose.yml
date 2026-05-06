@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        APP_BASE_IMAGE: ${APP_BASE_IMAGE:-mysql:8.0}
     container_name: ${APP_CONTAINER_NAME:-tencent-sheets-mysql-sync-app}
     restart: unless-stopped
     depends_on:
