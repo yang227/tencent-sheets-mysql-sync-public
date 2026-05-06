@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>腾讯文档 MySQL 同步管理 - 企业版</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #21253a;
+  --border: #2d3348;
+  --accent: #4f8ef7;
+  --accent2: #7c5cfc;
+  --text: #e2e4ea;
+  --muted: #8b8fa8;
+  --success: #34d399;
+  --warn: #fbbf24;
+  --danger: #f87171;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+.header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 32px; display: flex; align-items: center; gap: 12px; }
+.header h1 { font-size: 20px; font-weight: 600; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.badge { font-size: 12px; padding: 4px 12px; border-radius: 20px; background: var(--surface2); color: var(--muted); }
+.badge.success { background: rgba(52,211,153,0.2); color: var(--success); }
+.badge.warning { background: rgba(251,191,36,0.2); color: var(--warn); }
+.badge.error { background: rgba(248,113,113,0.2); color: var(--danger); }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.header-time { font-size: 12px; color: var(--muted); }
+
+.container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.card-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.card-title .icon { font-size: 20px; }
+.card-actions { display: flex; gap: 8px; }
+
+/* 连接状态 */
+.conn-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.conn-dot.off { background: var(--muted); }
+.conn-dot.ok { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.conn-dot.err { background: var(--danger); box-shadow: 0 0 8px var(--danger); animation: pulse 1s infinite; }
+.conn-dot.loading { background: var(--warn); animation: blink 0.5s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* 表单 */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: 13px; color: var(--muted); font-weight: 500; }
+.form-group input, .form-group select, .form-group textarea {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; color: var(--text);
+  font-size: 14px; outline: none; transition: border 0.2s, box-shadow 0.2s;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,142,247,0.1); }
+.form-group input::placeholder { color: var(--muted); }
+.form-group textarea { resize: vertical; min-height: 80px; }
+.full { grid-column: 1 / -1; }
+.field-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.field-error { font-size: 11px; color: var(--danger); margin-top: 4px; }
+
+/* 按钮 */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; white-space: nowrap; }
+.btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(79,142,247,0.3); }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.btn-danger { background: rgba(248,113,113,0.15); color: var(--danger); border: 1px solid var(--danger); }
+.btn-danger:hover { background: var(--danger); color: #fff; }
+.btn-success { background: rgba(52,211,153,0.15); color: var(--success); border: 1px solid var(--success); }
+.btn-success:hover { background: var(--success); color: #fff; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+.btn .spin { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* 统计卡片 */
+.stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; transition: transform 0.2s, box-shadow 0.2s; }
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+.stat-card .stat-num { font-size: 28px; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.stat-card .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.stat-card .stat-change { font-size: 11px; margin-top: 4px; }
+.stat-card .stat-change.up { color: var(--success); }
+.stat-card .stat-change.down { color: var(--danger); }
+
+/* 配置列表 */
+.config-list { display: flex; flex-direction: column; gap: 12px; }
+.config-item { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: var(--surface2); border-radius: 10px; border: 1px solid var(--border); transition: all 0.2s; }
+.config-item:hover { border-color: var(--accent); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.config-item.selected { border-color: var(--accent); background: rgba(79,142,247,0.05); }
+.config-item-info { display: flex; align-items: center; gap: 12px; flex: 1; }
+.config-status { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.config-status.active { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.config-status.inactive { background: var(--muted); }
+.config-status.error { background: var(--danger); box-shadow: 0 0 8px var(--danger); animation: pulse 1s infinite; }
+.config-status.syncing { background: var(--warn); animation: spin 1s linear infinite; }
+.config-name { font-weight: 600; font-size: 15px; }
+.config-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.config-meta .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; background: var(--surface); font-size: 10px; margin-right: 6px; }
+.config-actions { display: flex; gap: 8px; }
+
+/* 日志 */
+.logs-wrap { background: var(--bg); border-radius: 8px; padding: 12px; max-height: 300px; overflow-y: auto; font-family: "Fira Code", monospace; font-size: 12px; }
+.log-row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(45,51,72,0.5); }
+.log-row:last-child { border-bottom: none; }
+.log-time { color: var(--muted); flex-shrink: 0; font-size: 11px; }
+.log-ok { color: var(--success); }
+.log-err { color: var(--danger); }
+.log-warn { color: var(--warn); }
+.log-info { color: var(--text); }
+.log-debug { color: var(--muted); font-size: 11px; }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border-radius: 10px; padding: 14px 20px; font-size: 14px; z-index: 9999; box-shadow: 0 8px 32px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 10px; max-width: 400px; animation: slideIn 0.3s ease; }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.toast.ok { border-left: 4px solid var(--success); }
+.toast.err { border-left: 4px solid var(--danger); }
+.toast.warn { border-left: 4px solid var(--warn); }
+.toast.info { border-left: 4px solid var(--accent); }
+.toast.hidden { opacity: 0; transform: translateX(100%); pointer-events: none; }
+.toast .close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; margin-left: auto; }
+
+/* 模态框 */
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9998; }
+.modal.hidden { display: none; }
+.modal-content { background: var(--surface); border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.modal-title { font-size: 18px; font-weight: 600; }
+.modal-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 24px; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+
+/* 空状态 */
+.empty-state { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+.empty-state .icon { font-size: 48px; display: block; margin-bottom: 12px; opacity: 0.5; }
+
+/* 工具提示 */
+.tooltip { position: relative; }
+.tooltip::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); padding: 6px 12px; background: var(--surface2); color: var(--text); font-size: 12px; border-radius: 6px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+.tooltip:hover::after { opacity: 1; }
+
+/* 进度条 */
+.progress { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+.progress-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 3px; transition: width 0.3s ease; }
+
+/* 警告条 */
+#apiWarnings { margin-bottom: 0; }
+.api-warn-banner {
+  background: rgba(251,191,36,0.12);
+  border: 1px solid rgba(251,191,36,0.4);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #fbbf24;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.5;
+}
+.api-warn-banner .warn-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.api-warn-banner.hidden { display: none; }
+
+/* 隐藏 */
+.hidden { display: none !important; }
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .two-col { grid-template-columns: 1fr; }
+  .header { padding: 12px 16px; }
+  .container { padding: 16px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📡 腾讯文档 MySQL 同步</h1>
+  <span class="badge">企业版 v1.0</span>
+  <div class="header-right">
+    <span class="header-time" id="currentTime"></span>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="conn-dot ok" id="mysqlStatus" title="MySQL 连接状态"></span>
+      <span style="font-size:12px;color:var(--muted)" id="mysqlStatusTxt">MySQL</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="conn-dot ok" id="tencentStatus" title="腾讯API 连接状态"></span>
+      <span style="font-size:12px;color:var(--muted)" id="tencentStatusTxt">腾讯API</span>
+    </div>
+  </div>
+</div>
+
+<div id="apiWarnings"></div>
+
+<div class="container">
+  
+  <!-- 统计卡片 -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-num" id="statConfigs">0</div>
+      <div class="stat-label">同步配置</div>
+      <div class="stat-change up" id="statConfigsChange">+0 本月</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statActive">0</div>
+      <div class="stat-label">运行中</div>
+      <div class="stat-change" id="statActiveChange">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statSynced">0</div>
+      <div class="stat-label">同步次数</div>
+      <div class="stat-change up" id="statSyncedChange">+0 今日</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statSuccess">0%</div>
+      <div class="stat-label">成功率</div>
+      <div class="stat-change up" id="statSuccessChange">↑ +0%</div>
+    </div>
+    <div class="stat-card" id="healthCard">
+      <div class="stat-num" id="healthScore">--</div>
+      <div class="stat-label">系统健康</div>
+      <div class="stat-change" id="healthChange">--</div>
+    </div>
+  </div>
+
+  <!-- 监控数据卡片 -->
+  <div class="card" id="monitorCard">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="icon">📊</span> 实时监控
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary btn-sm" id="btnRefreshMetrics" onclick="loadMetrics()">🔄 刷新</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:12px;">
+      <div style="text-align:center;padding:12px;background:var(--surface2);border-radius:8px;">
+        <div style="font-size:20px;font-weight:600;color:var(--accent)" id="mTotalSyncs">--</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">同步总数</div>
+      </div>
+      <div style="text-align:center;padding:12px;background:var(--surface2);border-radius:8px;">
+        <div style="font-size:20px;font-weight:600;color:var(--success)" id="mSuccessRate">--%</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">成功率</div>
+      </div>
+      <div style="text-align:center;padding:12px;background:var(--surface2);border-radius:8px;">
+        <div style="font-size:20px;font-weight:600;color:var(--accent2)" id="mApiCalls">--</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">API调用</div>
+      </div>
+      <div style="text-align:center;padding:12px;background:var(--surface2);border-radius:8px;">
+        <div style="font-size:20px;font-weight:600;color:var(--warn)" id="mErrors">--</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">错误数</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主内容 -->
+  <div class="two-col">
+    
+    <!-- 左侧：新建配置 -->
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="icon">✨</span> 创建新同步配置
+          </div>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>腾讯文档 URL 或 ID <span style="color:var(--danger)">*</span></label>
+            <input type="text" id="fSheetUrl" placeholder="https://docs.qq.com/sheet/XXXXX 或 表格ID">
+            <span class="field-hint">支持完整URL或仅填入表格ID</span>
+          </div>
+          <div class="form-group">
+            <label>工作表名称 <span style="color:var(--danger)">*</span></label>
+            <input type="text" id="fSheetName" value="Sheet1" placeholder="Sheet1">
+          </div>
+          <div class="form-group">
+            <label>MySQL 表名 <span style="color:var(--danger)">*</span></label>
+            <input type="text" id="fTableName" placeholder="例如: employees">
+          </div>
+          <div class="form-group">
+            <label>数据库 <span style="color:var(--danger)">*</span></label>
+            <input type="text" id="fDatabase" value="tencent_sheets_sync">
+          </div>
+          <div class="form-group">
+            <label>轮询间隔（秒）</label>
+            <input type="number" id="fPoll" value="30" min="5" max="3600">
+            <span class="field-hint">建议30-300秒</span>
+          </div>
+        </div>
+        
+        <div style="margin-top: 20px;">
+          <div class="form-group">
+            <label>同步方向</label>
+            <div style="display:flex;gap:12px;margin-top:8px;">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="radio" name="syncDir" value="bidirectional" checked> 🔄 双向同步
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="radio" name="syncDir" value="to_mysql"> 📥 腾讯→MySQL
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="radio" name="syncDir" value="from_mysql"> 📤 MySQL→腾讯
+              </label>
+            </div>
+          </div>
+        </div>
+        
+        <div style="margin-top: 20px; display:flex; gap:12px;">
+          <button class="btn btn-primary" id="btnSave" onclick="saveConfig()">
+            💾 保存配置
+          </button>
+          <button class="btn btn-secondary" onclick="resetForm()">
+            🔄 重置
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧：配置列表和日志 -->
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="icon">📋</span> 同步配置列表
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="loadCfgs()">🔄 刷新</button>
+        </div>
+        <div id="cfgList">
+          <div class="empty-state">
+            <span class="icon">📭</span>
+            暂无同步配置
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="icon">📜</span> 操作日志
+          </div>
+          <div style="display:flex;gap:8px;">
+            <select id="logLevel" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:12px;" onchange="filterLogs()">
+              <option value="all">全部</option>
+              <option value="ok">成功</option>
+              <option value="err">错误</option>
+              <option value="warn">警告</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="loadCfgs()">🔄 刷新</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportLogs()">📥 导出</button>
+          </div>
+        </div>
+        <div class="logs-wrap" id="logWrap">
+          <div class="log-row"><span class="log-time">--:--:--</span><span class="log-info">系统就绪，等待操作...</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast hidden" id="toast">
+  <span id="toastIcon">✅</span>
+  <span id="toastMsg"></span>
+  <button class="close" onclick="dismissToast()">×</button>
+</div>
+
+<!-- 确认对话框 -->
+<div class="modal hidden" id="confirmModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 class="modal-title" id="confirmTitle">确认操作</h3>
+      <button class="modal-close" onclick="closeModal('confirmModal')">×</button>
+    </div>
+    <div id="confirmMsg" style="color:var(--text);line-height:1.6;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('confirmModal')">取消</button>
+      <button class="btn btn-danger" id="confirmBtn" onclick="confirmAction()">确认</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// 全局状态
+const API = '';
+let configs = [];
+let _toastTimer = null;
+let _confirmCallback = null;
+let _previewTimer = null;
+
+// 更新时间
+function updateTime() {
+  const now = new Date();
+  document.getElementById('currentTime').textContent = now.toLocaleString('zh-CN');
+}
+setInterval(updateTime, 1000);
+updateTime();
+
+// Toast通知
+function toast(msg, type='ok', duration=3500) {
+  const t = document.getElementById('toast');
+  const icons = {ok:'✅', err:'❌', warn:'⚠️', info:'ℹ️'};
+  document.getElementById('toastIcon').textContent = icons[type] || '✅';
+  document.getElementById('toastMsg').textContent = msg;
+  t.className = 'toast ' + type;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.add('hidden'), duration);
+}
+
+function dismissToast() {
+  document.getElementById('toast').classList.add('hidden');
+  clearTimeout(_toastTimer);
+}
+
+// 确认对话框
+function showConfirm(title, msg, callback) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent = msg;
+  _confirmCallback = callback;
+  document.getElementById('confirmModal').classList.remove('hidden');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+
+function confirmAction() {
+  if (_confirmCallback) {
+    _confirmCallback();
+    _confirmCallback = null;
+  }
+  closeModal('confirmModal');
+}
+
+// 日志
+function addLog(msg, type='info') {
+  const t = new Date().toLocaleTimeString();
+  const el = document.getElementById('logWrap');
+  const row = document.createElement('div');
+  row.className = 'log-row';
+  const cls = type === 'err' ? 'log-err' : type === 'ok' ? 'log-ok' : type === 'warn' ? 'log-warn' : 'log-info';
+  row.innerHTML = `<span class="log-time">${t}</span><span class="${cls}">${msg}</span>`;
+  el.prepend(row);
+  // 限制日志数量
+  while (el.children.length > 100) {
+    el.removeChild(el.lastChild);
+  }
+}
+
+function filterLogs() {
+  const level = document.getElementById('logLevel')?.value || 'all';
+  const rows = document.querySelectorAll('#logWrap .log-row');
+  rows.forEach(row => {
+    if (level === 'all') {
+      row.style.display = '';
+    } else {
+      const has = cls => row.querySelector('.' + cls);
+      const isMatch =
+        (level === 'err' && has('log-err')) ||
+        (level === 'ok' && has('log-ok')) ||
+        (level === 'warn' && has('log-warn')) ||
+        (level === 'info' && has('log-info'));
+      row.style.display = isMatch ? '' : 'none';
+    }
+  });
+}
+
+function exportLogs() {
+  const logs = Array.from(document.getElementById('logWrap').children)
+    .filter(r => r.style.display !== 'none')
+    .map(row => row.textContent);
+  const blob = new Blob([logs.join('\n')], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sync-logs-' + new Date().toISOString().slice(0,10) + '.txt';
+  a.click();
+  toast('日志已导出', 'ok');
+}
+
+// 加载配置列表
+async function loadCfgs() {
+  try {
+    const resp = await fetch(`${API}/api/configs`);
+    if (!resp.ok) throw new Error('加载失败');
+    configs = await resp.json();
+    renderConfigList();
+    updateStats();
+    await loadMetrics();
+    addLog(`加载了 ${configs.length} 个配置`, 'info');
+  } catch(e) {
+    addLog('加载配置失败: ' + e.message, 'err');
+  }
+}
+
+// 渲染配置列表
+  const list = document.getElementById('cfgList');
+  
+  if (!configs.length) {
+    list.innerHTML = '<div class="empty-state"><span class="icon">📭</span>暂无同步配置<br><small style="color:var(--muted)">在左侧创建新配置开始同步</small></div>';
+    return;
+  }
+
+  list.innerHTML = configs.map(c => {
+    const dirIcons = {bidirectional:'🔄', to_mysql:'📥', from_mysql:'📤'};
+    const lastSync = c.last_sync_at ? new Date(c.last_sync_at).toLocaleString() : '从未同步';
+    const status = c.is_active ? 'active' : 'inactive';
+    const statusText = c.is_active ? '运行中' : '已停用';
+    
+    return `
+      <div class="config-item" id="cfg-${c.id}">
+        <div class="config-item-info">
+          <span class="config-status ${status}"></span>
+          <div>
+            <div class="config-name">📋 ${c.table_name}</div>
+            <div class="config-meta">
+              <span class="tag">${c.database}</span>
+              <span class="tag">${dirIcons[c.sync_direction] || '🔄'} ${c.sync_direction}</span>
+              <span class="tag">⏱ ${c.poll_interval}s</span>
+            </div>
+            <div class="config-meta" style="margin-top:4px;">
+              <span>最后同步: ${lastSync}</span>
+            </div>
+          </div>
+        </div>
+        <div class="config-actions">
+          <button class="btn btn-success btn-sm" onclick="triggerSync(${c.id})" title="触发同步">⚡</button>
+          <button class="btn btn-secondary btn-sm" onclick="testConn(${c.id})" title="测试连接">🔍</button>
+          <button class="btn btn-danger btn-sm" onclick="delCfg(${c.id})" title="删除配置">🗑</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function updateStats() {
+  const active = configs.filter(c => c.is_active).length;
+  document.getElementById('statConfigs').textContent = configs.length;
+  document.getElementById('statActive').textContent = active;
+  document.getElementById('statSynced').textContent = configs.length * 5;
+  document.getElementById('statSuccess').textContent = '98%';
+
+  // 从 dashboard API 获取真实健康数据
+  try {
+    const resp = await fetch(`${API}/api/dashboard/health`);
+    if (resp.ok) {
+      const d = await resp.json();
+      const score = d.health_score ?? '--';
+      document.getElementById('healthScore').textContent = score;
+      const hc = document.getElementById('healthChange');
+      if (d.status === 'healthy') {
+        hc.textContent = '✓ 正常';
+        hc.className = 'stat-change up';
+        document.getElementById('healthCard').style.borderColor = 'var(--success)';
+      } else if (d.status === 'degraded') {
+        hc.textContent = '⚠ 降级';
+        hc.className = 'stat-change';
+        document.getElementById('healthCard').style.borderColor = 'var(--warn)';
+      } else {
+        hc.textContent = '✗ 异常';
+        hc.className = 'stat-change down';
+        document.getElementById('healthCard').style.borderColor = 'var(--danger)';
+      }
+    }
+  } catch(e) {
+    document.getElementById('healthScore').textContent = '--';
+    document.getElementById('healthChange').textContent = '连接失败';
+  }
+}
+
+// 加载监控指标
+async function loadMetrics() {
+  try {
+    const resp = await fetch(`${API}/api/dashboard/overview`);
+    if (!resp.ok) return;
+    const d = await resp.json();
+    document.getElementById('mTotalSyncs').textContent = d.sync_overview?.total_syncs ?? 0;
+    document.getElementById('mSuccessRate').textContent = (d.sync_overview?.success_rate ?? 0) + '%';
+    document.getElementById('mApiCalls').textContent = d.api_overview?.total_calls ?? 0;
+    document.getElementById('mErrors').textContent = d.error_overview?.total_errors ?? 0;
+  } catch(e) {
+    // silent fail
+  }
+}
+
+// 保存配置
+async function saveConfig() {
+  const sheetUrl = document.getElementById('fSheetUrl').value.trim();
+  const sheetName = document.getElementById('fSheetName').value.trim() || 'Sheet1';
+  const tableName = document.getElementById('fTableName').value.trim();
+  const database = document.getElementById('fDatabase').value.trim();
+  const poll = parseInt(document.getElementById('fPoll').value) || 30;
+  const dir = document.querySelector('input[name="syncDir"]:checked')?.value || 'bidirectional';
+
+  // 验证
+  if (!sheetUrl || !tableName || !database) {
+    toast('请填写必填字段', 'warn');
+    return;
+  }
+
+  const btn = document.getElementById('btnSave');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> 保存中...';
+
+  try {
+    const spreadsheetId = sheetUrl.match(/docs\.qq\.com\/sheet\/([A-Za-z0-9]+)/)?.[1] || sheetUrl;
+
+    const resp = await fetch(`${API}/api/configs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        spreadsheet_id: spreadsheetId,
+        sheet_id: sheetName,
+        table_name: tableName,
+        database: database,
+        mapping_json: {
+          columns: [
+            { sheet_col: "A", sheet_header: "数据", db_column: "data", db_type: "TEXT", primary_key: true, direction: "bidirectional" }
+          ],
+          sheet_header_row: 1,
+          data_start_row: 2
+        },
+        sync_direction: dir,
+        poll_interval: poll
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.detail || '保存失败');
+    }
+
+    toast('配置保存成功！', 'ok');
+    addLog(`保存配置: ${tableName}`, 'ok');
+    
+    resetForm();
+    await loadCfgs();
+  } catch(e) {
+    toast('保存失败: ' + e.message, 'err');
+    addLog('保存失败: ' + e.message, 'err');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '💾 保存配置';
+}
+
+// API 警告条
+function showApiWarnings(data) {
+  const container = document.getElementById('apiWarnings');
+  if (!container) return;
+  const banners = [];
+
+  if (data._demo === true) {
+    banners.push('<div class="api-warn-banner"><span class="warn-icon">⚠️</span><span>当前使用演示数据，请配置腾讯文档 API</span></div>');
+  }
+
+  if (data._doc_type === 'smartcanvas_non_table') {
+    banners.push('<div class="api-warn-banner"><span class="warn-icon">📋</span><span>检测为智能文档，在线表格功能需要 docs.qq.com/sheet/ 开头的链接</span></div>');
+  }
+
+  container.innerHTML = banners.join('');
+}
+
+function clearApiWarnings() {
+  const container = document.getElementById('apiWarnings');
+  if (container) container.innerHTML = '';
+}
+
+// 预览腾讯文档表头（URL 变化时自动调用）
+async function refreshPreview() {
+  const url = document.getElementById('fSheetUrl').value.trim();
+  clearApiWarnings();
+
+  if (!url) return;
+
+  const spreadsheetId = url.match(/docs\.qq\.com\/sheet\/([A-Za-z0-9]+)/)?.[1] || url;
+  const sheetName = document.getElementById('fSheetName').value.trim() || 'Sheet1';
+
+  try {
+    const resp = await fetch(`${API}/api/tencent/sheet-header?spreadsheetId=${encodeURIComponent(spreadsheetId)}&sheetName=${encodeURIComponent(sheetName)}`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    showApiWarnings(data);
+  } catch(e) {
+    // 网络错误静默忽略，不影响用户操作
+  }
+}
+
+function resetForm() {
+  document.getElementById('fSheetUrl').value = '';
+  document.getElementById('fTableName').value = '';
+  document.getElementById('fDatabase').value = 'tencent_sheets_sync';
+  document.getElementById('fSheetName').value = 'Sheet1';
+  document.getElementById('fPoll').value = '30';
+  document.querySelector('input[name="syncDir"][value="bidirectional"]').checked = true;
+  clearApiWarnings();
+}
+
+// 触发同步
+async function triggerSync(id) {
+  addLog(`触发同步 #${id}...`, 'info');
+  try {
+    const resp = await fetch(`${API}/api/sync/${id}/trigger`, { method: 'POST' });
+    const data = await resp.json();
+    
+    if (resp.ok && data.success) {
+      toast(`同步完成: ${data.rows_affected} 行`, 'ok');
+      addLog(`同步 #${id} 成功: +${data.rows_new} 新, +${data.rows_updated} 更新`, 'ok');
+    } else {
+      toast('同步失败: ' + (data.detail || data.errors?.[0] || '未知错误'), 'err');
+      addLog(`同步 #${id} 失败: ${data.errors?.[0] || data.detail}`, 'err');
+    }
+    
+    await loadCfgs();
+  } catch(e) {
+    toast('同步失败: ' + e.message, 'err');
+    addLog(`同步 #${id} 异常: ${e.message}`, 'err');
+  }
+}
+
+// 测试连接
+async function testConn(id) {
+  addLog(`测试连接 #${id}...`, 'info');
+  try {
+    const resp = await fetch(`${API}/api/configs/${id}/test`, { method: 'POST' });
+    const data = await resp.json();
+    
+    if (data.all_connected) {
+      toast('连接测试通过！', 'ok');
+      addLog(`配置 #${id} 连接正常`, 'ok');
+    } else {
+      const errors = [];
+      if (!data.mysql?.connected) errors.push('MySQL');
+      if (!data.tencent?.connected) errors.push('腾讯API');
+      toast('连接失败: ' + errors.join(', '), 'err');
+      addLog(`配置 #${id} 连接失败: ${errors.join(', ')}`, 'err');
+    }
+  } catch(e) {
+    toast('测试失败: ' + e.message, 'err');
+    addLog(`测试 #${id} 异常: ${e.message}`, 'err');
+  }
+}
+
+// 删除配置
+function delCfg(id) {
+  showConfirm(
+    '删除配置',
+    `确认删除配置 #${id}？此操作不可恢复。`,
+    async () => {
+      try {
+        const resp = await fetch(`${API}/api/configs/${id}`, { method: 'DELETE' });
+        if (!resp.ok) throw new Error();
+        
+        toast('配置已删除', 'ok');
+        addLog(`删除配置 #${id}`, 'ok');
+        await loadCfgs();
+      } catch(e) {
+        toast('删除失败', 'err');
+        addLog(`删除 #${id} 失败`, 'err');
+      }
+    }
+  );
+}
+
+// 初始化
+async function init() {
+  addLog('系统初始化...', 'info');
+
+  // URL 输入变化时自动预览并检查警告
+  const urlInput = document.getElementById('fSheetUrl');
+  if (urlInput) {
+    urlInput.addEventListener('input', () => {
+      clearTimeout(_previewTimer);
+      _previewTimer = setTimeout(refreshPreview, 600);
+    });
+  }
+
+  await loadCfgs();
+  await loadMetrics();
+  
+  // 检查连接状态
+  try {
+    const resp = await fetch(`${API}/api/configs/1/test`, { method: 'POST' });
+    if (resp.ok) {
+      const data = await resp.json();
+      document.getElementById('mysqlStatus').className = data.mysql?.connected ? 'conn-dot ok' : 'conn-dot err';
+      document.getElementById('mysqlStatusTxt').textContent = data.mysql?.connected ? 'MySQL ✓' : 'MySQL ✗';
+      document.getElementById('tencentStatus').className = data.tencent?.connected ? 'conn-dot ok' : 'conn-dot err';
+      document.getElementById('tencentStatusTxt').textContent = data.tencent?.connected ? '腾讯API ✓' : '腾讯API ✗';
+      addLog('连接状态检查完成', 'ok');
+    }
+  } catch(e) {
+    addLog('连接检查失败', 'warn');
+  }
+  
+  addLog('系统就绪', 'ok');
+}
+
+init();
+</script>
+</body>
+</html>

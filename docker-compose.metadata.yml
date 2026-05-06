@@ -1,0 +1,15 @@
+services:
+  metadata-mysql:
+    image: mysql:8.0
+    container_name: tencent-sync-metadata-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${METADATA_MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: tencent_sheets_sync
+    ports:
+      - "13306:3306"
+    volumes:
+      - metadata_mysql_data:/var/lib/mysql
+
+volumes:
+  metadata_mysql_data:

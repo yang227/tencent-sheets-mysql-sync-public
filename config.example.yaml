@@ -1,0 +1,22 @@
+database:
+  host: "127.0.0.1"
+  port: 13306
+  user: "root"
+  password: "change_this_password"
+  name: "tencent_sheets_sync"
+
+tencent:
+  app_id: "your_tencent_app_id"
+  app_secret: ""
+  open_id: "your_tencent_open_id"
+  callback_token: "change_this_callback_token"
+
+app:
+  host: "0.0.0.0"
+  port: 8083
+  webhook_base_url: "https://your-domain.example.com/webhook/tencent"
+
+sync:
+  default_poll_interval: 30
+  batch_size: 100
+  retry_times: 3
