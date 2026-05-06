@@ -1,0 +1,15 @@
+.git
+.venv
+.pytest_cache
+.workbuddy
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.coverage
+coverage.json
+server*.log
+frontend/node_modules
+frontend/.vite
+.env
+config.yaml

@@ -1,0 +1,58 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${APP_CONTAINER_NAME:-tencent-sheets-mysql-sync-app}
+    restart: unless-stopped
+    depends_on:
+      metadata-mysql:
+        condition: service_healthy
+    environment:
+      DATABASE_HOST: ${DATABASE_HOST:-metadata-mysql}
+      DATABASE_PORT: ${DATABASE_PORT:-3306}
+      DATABASE_USER: ${DATABASE_USER:-root}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-change_this_root_password}
+      DATABASE_NAME: ${DATABASE_NAME:-tencent_sheets_sync}
+      APP_HOST: ${APP_HOST:-0.0.0.0}
+      APP_PORT: ${APP_PORT:-8083}
+      APP_WEBHOOK_BASE_URL: ${APP_WEBHOOK_BASE_URL:-http://localhost:8083/webhook/tencent}
+      FRONTEND_HOST: ${FRONTEND_HOST:-0.0.0.0}
+      FRONTEND_PORT: ${FRONTEND_PORT:-5173}
+      FRONTEND_BACKEND_URL: ${FRONTEND_BACKEND_URL:-http://127.0.0.1:8083}
+      TENCENT_APP_ID: ${TENCENT_APP_ID:-}
+      TENCENT_APP_SECRET: ${TENCENT_APP_SECRET:-}
+      TENCENT_OPEN_ID: ${TENCENT_OPEN_ID:-}
+      TENCENT_CALLBACK_TOKEN: ${TENCENT_CALLBACK_TOKEN:-change_this_callback_token}
+      TENCENT_DOCS_ACCESS_TOKEN: ${TENCENT_DOCS_ACCESS_TOKEN:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-generate_a_fernet_key}
+      METADATA_MYSQL_READY_TIMEOUT: ${METADATA_MYSQL_READY_TIMEOUT:-60}
+    ports:
+      - "${APP_PORT:-8083}:${APP_PORT:-8083}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os,urllib.request; port=os.environ.get('APP_PORT','8083'); urllib.request.urlopen(f'http://127.0.0.1:{port}/health', timeout=3)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  metadata-mysql:
+    image: ${METADATA_MYSQL_IMAGE:-mysql:8.0}
+    container_name: ${METADATA_MYSQL_CONTAINER_NAME:-tencent-sync-metadata-mysql}
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD:-change_this_root_password}
+      MYSQL_DATABASE: ${DATABASE_NAME:-tencent_sheets_sync}
+    ports:
+      - "${METADATA_MYSQL_PORT:-13306}:3306"
+    volumes:
+      - metadata_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+volumes:
+  metadata_mysql_data:

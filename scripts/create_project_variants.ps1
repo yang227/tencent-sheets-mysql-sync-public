@@ -36,12 +36,15 @@ $publicExcludeFiles = @(
 )
 
 $githubKeepTopLevelFiles = @(
+    ".dockerignore",
     ".env.example",
     ".gitignore",
     "API_REFERENCE.md",
     "CHANGELOG.md",
     "config.example.yaml",
     "CONTRIBUTING.md",
+    "Dockerfile",
+    "docker-compose.yml",
     "docker-compose.metadata.yml",
     "OPERATIONS.md",
     "PROJECT_VARIANTS.md",

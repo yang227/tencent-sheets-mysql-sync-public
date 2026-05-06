@@ -55,6 +55,9 @@
 - `migrations/`
 - `scripts/`
 - `tests/`
+- `Dockerfile`
+- `.dockerignore`
+- `docker-compose.yml`
 - `README.md`
 - `OPERATIONS.md`
 - `TROUBLESHOOTING.md`

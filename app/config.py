@@ -28,6 +28,20 @@ def load_env_file():
 
 load_env_file()
 
+
+def _get_env_str(name: str, default: str) -> str:
+    value = os.environ.get(name)
+    if value is None or value == "":
+        return default
+    return value
+
+
+def _get_env_int(name: str, default: int) -> int:
+    value = os.environ.get(name)
+    if value is None or value == "":
+        return default
+    return int(value)
+
 class DatabaseConfig(BaseModel):
     host: str = "localhost"
     port: int = 3306
@@ -92,6 +106,25 @@ def load_config(config_path: Optional[str] = None) -> Settings:
         _settings = Settings(**config_data)
     else:
         _settings = Settings()
+
+    _settings.database.host = _get_env_str("DATABASE_HOST", _settings.database.host)
+    _settings.database.port = _get_env_int("DATABASE_PORT", _settings.database.port)
+    _settings.database.user = _get_env_str("DATABASE_USER", _settings.database.user)
+    _settings.database.password = _get_env_str("DATABASE_PASSWORD", _settings.database.password)
+    _settings.database.name = _get_env_str("DATABASE_NAME", _settings.database.name)
+
+    _settings.tencent.app_id = _get_env_str("TENCENT_APP_ID", _settings.tencent.app_id)
+    _settings.tencent.app_secret = _get_env_str("TENCENT_APP_SECRET", _settings.tencent.app_secret)
+    _settings.tencent.callback_token = _get_env_str("TENCENT_CALLBACK_TOKEN", _settings.tencent.callback_token)
+    _settings.tencent.open_id = _get_env_str("TENCENT_OPEN_ID", _settings.tencent.open_id)
+
+    _settings.app.host = _get_env_str("APP_HOST", _settings.app.host)
+    _settings.app.port = _get_env_int("APP_PORT", _settings.app.port)
+    _settings.app.webhook_base_url = _get_env_str("APP_WEBHOOK_BASE_URL", _settings.app.webhook_base_url)
+
+    _settings.frontend.host = _get_env_str("FRONTEND_HOST", _settings.frontend.host)
+    _settings.frontend.port = _get_env_int("FRONTEND_PORT", _settings.frontend.port)
+    _settings.frontend.backend_url = _get_env_str("FRONTEND_BACKEND_URL", _settings.frontend.backend_url)
     
     return _settings
 
