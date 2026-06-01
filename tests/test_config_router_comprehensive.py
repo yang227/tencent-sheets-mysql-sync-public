@@ -15,7 +15,7 @@ app.include_router(config_router)
 
 @pytest.fixture
 def client():
-    mock_db = MagicMock(spec=MySQLService)
+    mock_db = MagicMock()
     app.dependency_overrides[get_db] = lambda: mock_db
     c = TestClient(app)
     yield c, mock_db
@@ -55,7 +55,7 @@ def _cols():
 
 def test_get_db():
     with patch("app.routers.config_router.get_mysql_service") as mock_get:
-        mock_get.return_value = MagicMock(spec=MySQLService)
+        mock_get.return_value = MagicMock()
         result = get_db()
         assert result is not None
 

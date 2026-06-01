@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from app.services.sync_engine import SyncEngine, SyncResult, _config_cache, _config_cache_time
+from app.services.database_service import DatabaseService
 
 
 def test_sync_result_init():
@@ -94,15 +95,21 @@ async def test_trigger_sync_to_mysql():
     """Test trigger_sync with to_mysql direction."""
     engine = SyncEngine(config_id=1)
     engine._metadata_db = MagicMock()
-    engine._metadata_db.get_sync_config.return_value = {
+    engine._metadata_db.execute.return_value = [{
         "id": 1,
         "spreadsheet_id": "test_sheet",
         "sheet_id": "sheet1",
         "table_name": "test_table",
         "database": "",
+        "db_type": "mysql",
         "sync_direction": "to_mysql",
-        "mapping_json": {"columns": []}
-    }
+        "mapping_json": '{"columns": []}',
+        "poll_interval": 30,
+        "is_active": 1,
+        "mysql_config_id": None,
+        "postgresql_config_id": None,
+        "tencent_config_id": None,
+    }]
     
     # Mock the sync_to_mysql method
     with patch.object(engine, 'sync_to_mysql', new_callable=AsyncMock) as mock_sync:

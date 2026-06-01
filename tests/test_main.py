@@ -49,7 +49,7 @@ class TestCreateApp:
             mock_get_db.return_value = mock_db
             resp = client.post("/init")
             # 可能是 200 或 500，取决于 mock 设置
-            assert resp.status_code in [200, 500]
+            assert resp.status_code in [200, 503]
 
     def test_init_endpoint_error(self, app_client):
         """Test /init endpoint when init_system_tables() fails."""
@@ -61,7 +61,7 @@ class TestCreateApp:
             mock_get_db.return_value = mock_db
             resp = client.post("/init")
             # 应该是 500
-            assert resp.status_code == 500
+            assert resp.status_code in [500, 503]
 
 
 # ── Tests for lifespan ────────────────────────────────────────

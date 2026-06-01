@@ -3,10 +3,9 @@ Security tests for SQL injection protection.
 Tests the identifier validation and MySQL type validation.
 """
 import pytest
-from app.services.mysql_service import (
-    _validate_identifier,
-    _validate_mysql_type,
-)
+from app.services.database_service import validate_identifier as _validate_identifier
+from app.services.mysql_service import _validate_mysql_type
+from app.services.db_exception import IdentifierValidationError, DatabaseTypeValidationError
 
 
 class TestValidateIdentifier:
@@ -26,48 +25,48 @@ class TestValidateIdentifier:
 
     def test_empty_identifier(self):
         """Test empty identifier raises ValueError."""
-        with pytest.raises(ValueError, match="Identifier cannot be empty"):
+        with pytest.raises(IdentifierValidationError, match="Identifier cannot be empty"):
             _validate_identifier("")
 
     def test_none_identifier(self):
         """Test None identifier raises ValueError."""
-        with pytest.raises(ValueError, match="cannot be empty"):
+        with pytest.raises(IdentifierValidationError, match="cannot be empty"):
             _validate_identifier(None)
 
     def test_too_long_identifier(self):
         """Test identifier longer than 64 characters raises ValueError."""
         long_name = "a" * 65
-        with pytest.raises(ValueError, match="too long"):
+        with pytest.raises(IdentifierValidationError, match="too long"):
             _validate_identifier(long_name)
 
     def test_sql_injection_single_quote(self):
         """Test single quote injection is rejected."""
-        with pytest.raises(ValueError, match="Invalid identifier"):
+        with pytest.raises(IdentifierValidationError, match="Invalid identifier"):
             _validate_identifier("users'; DROP TABLE users; --")
 
     def test_sql_injection_double_quote(self):
         """Test double quote injection is rejected."""
-        with pytest.raises(ValueError, match="Invalid identifier"):
+        with pytest.raises(IdentifierValidationError, match="Invalid identifier"):
             _validate_identifier('users" OR "1"="1')
 
     def test_sql_injection_semicolon(self):
         """Test semicolon injection is rejected."""
-        with pytest.raises(ValueError, match="Invalid identifier"):
+        with pytest.raises(IdentifierValidationError, match="Invalid identifier"):
             _validate_identifier("users; DROP TABLE users")
 
     def test_sql_injection_comment(self):
         """Test SQL comment injection is rejected."""
-        with pytest.raises(ValueError, match="Invalid identifier"):
+        with pytest.raises(IdentifierValidationError, match="Invalid identifier"):
             _validate_identifier("users--comment")
 
     def test_sql_injection_union(self):
         """Test UNION injection is rejected."""
-        with pytest.raises(ValueError, match="Invalid identifier"):
+        with pytest.raises(IdentifierValidationError, match="Invalid identifier"):
             _validate_identifier("users UNION SELECT")
 
     def test_identifier_with_hyphen_not_allowed(self):
         """Test hyphen is not allowed by default."""
-        with pytest.raises(ValueError, match="Invalid identifier"):
+        with pytest.raises(IdentifierValidationError, match="Invalid identifier"):
             _validate_identifier("my-table")
 
     def test_identifier_with_hyphen_allowed(self):
@@ -78,7 +77,7 @@ class TestValidateIdentifier:
 
     def test_identifier_starts_with_number(self):
         """Test identifier starting with number is rejected."""
-        with pytest.raises(ValueError, match="Invalid identifier"):
+        with pytest.raises(IdentifierValidationError, match="Invalid identifier"):
             _validate_identifier("123table")
 
 
@@ -101,27 +100,27 @@ class TestValidateMysqlType:
 
     def test_invalid_type(self):
         """Test invalid MySQL type raises ValueError."""
-        with pytest.raises(ValueError, match="Invalid data type"):
+        with pytest.raises(DatabaseTypeValidationError, match="Invalid.*type"):
             _validate_mysql_type("INVALID_TYPE")
 
     def test_type_with_sql_injection(self):
         """Test type with SQL injection is rejected."""
-        with pytest.raises(ValueError, match="Invalid data type"):
+        with pytest.raises(DatabaseTypeValidationError, match="Invalid.*type"):
             _validate_mysql_type("VARCHAR(255); DROP TABLE users;")
 
     def test_type_with_comment(self):
         """Test type with SQL comment is rejected."""
-        with pytest.raises(ValueError, match="Invalid data type"):
+        with pytest.raises(DatabaseTypeValidationError, match="Invalid.*type"):
             _validate_mysql_type("VARCHAR(255)--comment")
 
     def test_empty_type(self):
         """Test empty type raises ValueError."""
-        with pytest.raises(ValueError, match="cannot be empty"):
+        with pytest.raises(DatabaseTypeValidationError, match="cannot be empty"):
             _validate_mysql_type("")
 
     def test_none_type(self):
         """Test None type raises ValueError."""
-        with pytest.raises(ValueError, match="cannot be empty"):
+        with pytest.raises(DatabaseTypeValidationError, match="cannot be empty"):
             _validate_mysql_type(None)
 
 
@@ -139,11 +138,12 @@ class TestSqlInjectionInMethods:
         service.execute = lambda q, p=None: []
         
         # Test with invalid database name
-        with patch('app.services.mysql_service._validate_identifier') as mock_val:
-            mock_val.side_effect = ValueError("Invalid identifier")
+        with patch('app.services.mysql_service.validate_identifier') as mock_val:
+            from app.services.db_exception import IdentifierValidationError
+            mock_val.side_effect = IdentifierValidationError("Invalid identifier")
             try:
                 service.list_tables("invalid;name")
-            except ValueError:
+            except Exception:
                 pass
             
             # Verify validation was called

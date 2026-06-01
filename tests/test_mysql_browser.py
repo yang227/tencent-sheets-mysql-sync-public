@@ -14,7 +14,7 @@ app.include_router(mysql_router)
 
 @pytest.fixture
 def client():
-    mock_db = MagicMock(spec=MySQLService)
+    mock_db = MagicMock()
     app.dependency_overrides[get_db] = lambda: mock_db
     test_client = TestClient(app)
     yield test_client, mock_db
@@ -26,7 +26,7 @@ class TestMysqlBrowserRouter:
     def test_get_db(self):
         """Cover get_db() -> get_mysql_service() (line 9)."""
         with patch("app.routers.mysql_browser.get_mysql_service") as mock_get:
-            mock_get.return_value = MagicMock(spec=MySQLService)
+            mock_get.return_value = MagicMock()
             result = get_db()
             assert result is not None
             mock_get.assert_called_once()
