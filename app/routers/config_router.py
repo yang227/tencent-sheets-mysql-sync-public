@@ -3,7 +3,11 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.models.sync_config import SyncConfig, SyncConfigCreate, SyncConfigUpdate
-from app.services.mysql_service import MySQLService, MySQLServiceError, get_mysql_service
+from app.services.mysql_service import MySQLService, get_mysql_service
+from app.services.db_exception import (
+    DatabaseServiceError,
+    handle_service_exception,
+)
 from app.services.sync_engine import SyncEngine
 from app.utils import parse_config_row
 
@@ -12,13 +16,6 @@ router = APIRouter(prefix="/api/configs", tags=["sync-configs"])
 
 def get_db() -> MySQLService:
     return get_mysql_service()
-
-
-def _storage_unavailable(detail: str) -> HTTPException:
-    return HTTPException(
-        status_code=503,
-        detail=f"Platform metadata storage unavailable: {detail}",
-    )
 
 
 @router.get("", response_model=List[SyncConfig])
@@ -32,6 +29,8 @@ async def list_configs(db: MySQLService = Depends(get_db)):
             parse_config_row(row)
             configs.append(SyncConfig.model_validate(row))
         return configs
+    except DatabaseServiceError:
+        return []
     except Exception:
         return []
 
@@ -45,7 +44,9 @@ async def create_config(config: SyncConfigCreate, db: MySQLService = Depends(get
             sheet_id=config.sheet_id,
             table_name=config.table_name,
             database=config.database,
+            db_type=config.db_type,
             mysql_config_id=config.mysql_config_id,
+            postgresql_config_id=config.postgresql_config_id,
             tencent_config_id=config.tencent_config_id,
             mapping_json=mapping_dict,
             sync_direction=config.sync_direction.value,
@@ -60,12 +61,12 @@ async def create_config(config: SyncConfigCreate, db: MySQLService = Depends(get
         row = result[0]
         parse_config_row(row)
         return SyncConfig.model_validate(row)
-    except MySQLServiceError as exc:
-        raise _storage_unavailable(str(exc)) from exc
     except HTTPException:
         raise
+    except DatabaseServiceError as exc:
+        raise handle_service_exception(exc, "create_config")
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise handle_service_exception(exc, "create_config")
 
 
 @router.get("/{config_id}", response_model=SyncConfig)
@@ -77,12 +78,12 @@ async def get_config(config_id: int, db: MySQLService = Depends(get_db)):
         row = result[0]
         parse_config_row(row)
         return SyncConfig.model_validate(row)
-    except MySQLServiceError as exc:
-        raise _storage_unavailable(str(exc)) from exc
     except HTTPException:
         raise
+    except DatabaseServiceError as exc:
+        raise handle_service_exception(exc, "get_config")
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise handle_service_exception(exc, "get_config")
 
 
 @router.put("/{config_id}", response_model=SyncConfig)
@@ -98,8 +99,12 @@ async def update_config(
         kwargs["table_name"] = config.table_name
     if config.database is not None:
         kwargs["database"] = config.database
+    if config.db_type is not None:
+        kwargs["db_type"] = config.db_type
     if config.mysql_config_id is not None:
         kwargs["mysql_config_id"] = config.mysql_config_id
+    if config.postgresql_config_id is not None:
+        kwargs["postgresql_config_id"] = config.postgresql_config_id
     if config.tencent_config_id is not None:
         kwargs["tencent_config_id"] = config.tencent_config_id
     if config.mapping_json is not None:
@@ -121,7 +126,6 @@ async def update_config(
 
         try:
             from app.scheduler.sync_scheduler import SyncScheduler
-
             if config.is_active is not None and not config.is_active:
                 SyncScheduler.remove_sync_job(config_id)
             else:
@@ -131,9 +135,7 @@ async def update_config(
                 )
                 interval = (current[0]["poll_interval"] if current else 30) or 30
                 SyncScheduler.add_sync_job(
-                    job_id=config_id,
-                    config_id=config_id,
-                    interval_seconds=interval,
+                    job_id=config_id, config_id=config_id, interval_seconds=interval,
                 )
         except Exception:
             pass
@@ -144,12 +146,12 @@ async def update_config(
         row = result[0]
         parse_config_row(row)
         return SyncConfig.model_validate(row)
-    except MySQLServiceError as exc:
-        raise _storage_unavailable(str(exc)) from exc
     except HTTPException:
         raise
+    except DatabaseServiceError as exc:
+        raise handle_service_exception(exc, "update_config")
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise handle_service_exception(exc, "update_config")
 
 
 @router.delete("/{config_id}")
@@ -158,15 +160,16 @@ async def delete_config(config_id: int, db: MySQLService = Depends(get_db)):
         db.delete_sync_config(config_id)
         try:
             from app.scheduler.sync_scheduler import SyncScheduler
-
             SyncScheduler.remove_sync_job(config_id)
         except Exception:
             pass
         return {"message": "Config deleted"}
-    except MySQLServiceError as exc:
-        raise _storage_unavailable(str(exc)) from exc
+    except HTTPException:
+        raise
+    except DatabaseServiceError as exc:
+        raise handle_service_exception(exc, "delete_config")
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise handle_service_exception(exc, "delete_config")
 
 
 @router.post("/{config_id}/test")
@@ -175,13 +178,12 @@ async def test_connection(config_id: int, db: MySQLService = Depends(get_db)):
         result = db.execute("SELECT * FROM sync_configs WHERE id = %s", (config_id,))
         if not result:
             raise HTTPException(status_code=404, detail="Config not found")
-
         config = result[0]
         engine = SyncEngine(config_id=config["id"], mysql_service=db)
         return await engine.test_connection()
-    except MySQLServiceError as exc:
-        raise _storage_unavailable(str(exc)) from exc
     except HTTPException:
         raise
+    except DatabaseServiceError as exc:
+        raise handle_service_exception(exc, "test_config_connection")
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise handle_service_exception(exc, "test_config_connection")

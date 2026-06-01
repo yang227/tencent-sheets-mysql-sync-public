@@ -1,7 +1,8 @@
 """
 增强的同步路由器 - 集成审计、日志和监控
 """
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends
+from app.services.db_exception import DatabaseServiceError, handle_service_exception, Request
 from typing import List, Optional
 from datetime import datetime, timedelta
 import json
@@ -108,8 +109,8 @@ async def trigger_sync(
             "details": result.details,
         }
 
-    except SyncEngineError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except DatabaseServiceError as exc:
+        raise handle_service_exception(exc, "enhanced_sync")
     except HTTPException:
         raise
     except Exception as e:
@@ -169,8 +170,8 @@ async def sync_to_mysql(
             "duration_seconds": result.duration_seconds,
             "errors": result.errors,
         }
-    except SyncEngineError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except DatabaseServiceError as exc:
+        raise handle_service_exception(exc, "enhanced_sync")
     except HTTPException:
         raise
     except Exception as e:
@@ -226,8 +227,8 @@ async def sync_from_mysql(
             "duration_seconds": result.duration_seconds,
             "errors": result.errors,
         }
-    except SyncEngineError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except DatabaseServiceError as exc:
+        raise handle_service_exception(exc, "enhanced_sync")
     except HTTPException:
         raise
     except Exception as e:
@@ -244,8 +245,8 @@ async def get_sync_status(config_id: int, db: MySQLService = Depends(get_db)):
         return engine.get_sync_status()
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "enhanced_sync")
 
 
 @router.get("/{config_id}/statistics")
@@ -258,8 +259,8 @@ async def get_sync_statistics(config_id: int, db: MySQLService = Depends(get_db)
         return stats
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "enhanced_sync")
 
 
 @router.post("/{config_id}/test")
@@ -321,8 +322,8 @@ async def get_audit_logs(
             "total": len(events),
             "statistics": audit_logger.get_statistics(),
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "enhanced_sync")
 
 
 @router.get("/audit/export")
@@ -353,8 +354,8 @@ async def export_audit_logs(
                 "format": "json",
                 "content": content,
             }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "enhanced_sync")
 
 
 @router.get("/metrics")
@@ -362,8 +363,8 @@ async def get_metrics():
     """获取系统指标"""
     try:
         return metrics_collector.get_all_metrics()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "enhanced_sync")
 
 
 @router.get("/metrics/prometheus")
@@ -373,8 +374,8 @@ async def get_metrics_prometheus():
         from fastapi.responses import PlainTextResponse
         content = metrics_collector.export_prometheus_format()
         return PlainTextResponse(content=content, media_type="text/plain")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "enhanced_sync")
 
 
 @router.get("/metrics/sync")
@@ -385,8 +386,8 @@ async def get_sync_metrics():
             "sync_statistics": metrics_collector.get_sync_statistics(),
             "api_statistics": metrics_collector.get_api_statistics(),
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "enhanced_sync")
 
 
 @router.post("/metrics/reset")
@@ -395,5 +396,5 @@ async def reset_metrics():
     try:
         metrics_collector.reset_metrics()
         return {"message": "指标已重置"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "enhanced_sync")

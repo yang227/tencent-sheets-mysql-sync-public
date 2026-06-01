@@ -1,6 +1,10 @@
 from fastapi import APIRouter, Depends
 
 from app.services.mysql_service import MySQLService, get_mysql_service
+from app.services.db_exception import DatabaseServiceError
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/mysql", tags=["mysql-browser"])
 
@@ -12,16 +16,18 @@ def get_db() -> MySQLService:
 @router.get("/databases")
 async def list_databases(db: MySQLService = Depends(get_db)):
     try:
-        return db.list_mysql_databases()
-    except Exception:
+        return db.list_databases()
+    except DatabaseServiceError as exc:
+        logger.error("list_databases: %s", exc)
         return []
 
 
 @router.get("/databases/{database}/tables")
 async def list_tables(database: str, db: MySQLService = Depends(get_db)):
     try:
-        return db.list_mysql_tables(database)
-    except Exception:
+        return db.list_tables(database)
+    except DatabaseServiceError as exc:
+        logger.error("list_tables: %s", exc)
         return []
 
 
@@ -41,5 +47,6 @@ async def get_columns(table_name: str, database: str = "", db: MySQLService = De
             }
             for col in columns
         ]
-    except Exception:
+    except DatabaseServiceError as exc:
+        logger.error("get_columns: %s", exc)
         return []

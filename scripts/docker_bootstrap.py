@@ -20,12 +20,8 @@ def wait_for_mysql(host: str, port: int, user: str, password: str, database: str
     while time.time() < deadline:
         try:
             conn = mysql.connector.connect(
-                host=host,
-                port=port,
-                user=user,
-                password=password,
-                database=database,
-                connection_timeout=3,
+                host=host, port=port, user=user, password=password,
+                database=database, connection_timeout=3,
             )
             conn.close()
             return
@@ -40,10 +36,8 @@ def apply_sql_file(host: str, port: int, user: str, password: str, database: str
     sql = path.read_text(encoding="utf-8")
     command = [
         "mysql",
-        f"--host={host}",
-        f"--port={port}",
-        f"--user={user}",
-        f"--password={password}",
+        f"--host={host}", f"--port={port}",
+        f"--user={user}", f"--password={password}",
         database,
     ]
     subprocess.run(command, input=sql, text=True, check=True)
@@ -54,30 +48,29 @@ def main() -> None:
     timeout_seconds = int(os.environ.get("METADATA_MYSQL_READY_TIMEOUT", "60"))
 
     wait_for_mysql(
-        host=config.database.host,
-        port=config.database.port,
-        user=config.database.user,
-        password=config.database.password,
-        database=config.database.name,
-        timeout_seconds=timeout_seconds,
+        host=config.database.host, port=config.database.port,
+        user=config.database.user, password=config.database.password,
+        database=config.database.name, timeout_seconds=timeout_seconds,
     )
 
-    apply_sql_file(
-        config.database.host,
-        config.database.port,
-        config.database.user,
-        config.database.password,
-        config.database.name,
-        PROJECT_ROOT / "migrations" / "init.sql",
-    )
-    apply_sql_file(
-        config.database.host,
-        config.database.port,
-        config.database.user,
-        config.database.password,
-        config.database.name,
-        PROJECT_ROOT / "migrations" / "add_config_tables.sql",
-    )
+    migrations_dir = PROJECT_ROOT / "migrations"
+    migration_files = [
+        "init.sql",
+        "add_config_tables.sql",
+        "add_postgresql_support.sql",
+    ]
+
+    for filename in migration_files:
+        path = migrations_dir / filename
+        if path.exists():
+            print(f"Applying migration: {filename}")
+            apply_sql_file(
+                config.database.host, config.database.port,
+                config.database.user, config.database.password,
+                config.database.name, path,
+            )
+        else:
+            print(f"Skipping migration (not found): {filename}")
 
 
 if __name__ == "__main__":

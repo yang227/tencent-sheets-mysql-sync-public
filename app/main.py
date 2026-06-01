@@ -12,11 +12,13 @@ from app.routers import config_router, mysql_browser_router, sync_router
 from app.routers.enhanced_router import router as enhanced_router
 from app.routers.monitoring_router import router as monitoring_router
 from app.routers.mysql_config_router import router as mysql_config_router
+from app.routers.postgresql_config_router import router as postgresql_config_router
 from app.routers.tencent_config_router import router as tencent_config_router
 from app.routers.tencent_helper import router as tencent_helper
 from app.routers.workbench_router import router as workbench_router
 from app.scheduler.sync_scheduler import SyncScheduler
 from app.services.mysql_service import MySQLService, get_mysql_service
+from app.services.db_exception import DatabaseServiceError, handle_service_exception
 from app.webhooks.tencent_webhook import router as tencent_webhook
 
 logger = logging.getLogger(__name__)
@@ -37,9 +39,9 @@ def create_app() -> FastAPI:
     app_config = config.app
 
     app = FastAPI(
-        title="Tencent Sheets MySQL Sync",
-        description="Tencent Sheets and MySQL bidirectional sync platform",
-        version="2.0.0",
+        title="Tencent Sheets Database Sync",
+        description="Tencent Sheets and Database (MySQL/PostgreSQL) bidirectional sync platform",
+        version="3.0.0",
         lifespan=lifespan,
     )
 
@@ -58,6 +60,7 @@ def create_app() -> FastAPI:
     app.include_router(enhanced_router)
     app.include_router(monitoring_router)
     app.include_router(mysql_config_router)
+    app.include_router(postgresql_config_router)
     app.include_router(tencent_config_router)
     app.include_router(workbench_router)
     app.include_router(tencent_webhook)
@@ -66,7 +69,8 @@ def create_app() -> FastAPI:
     async def health_check():
         return {
             "status": "healthy",
-            "service": "tencent-sheets-mysql-sync",
+            "service": "tencent-sheets-db-sync",
+            "version": "3.0.0",
             "port": app_config.port,
         }
 
@@ -74,10 +78,9 @@ def create_app() -> FastAPI:
     async def init_system(db: MySQLService = Depends(get_mysql_service)):
         try:
             db.init_system_tables()
-            return {"message": "系统表初始化完成"}
-        except Exception as exc:
-            logger.error("System initialization failed: %s", exc)
-            raise HTTPException(status_code=500, detail=f"初始化失败: {exc}") from exc
+            return {"message": "System tables initialized successfully"}
+        except DatabaseServiceError as exc:
+            raise handle_service_exception(exc, "init_system")
 
     @app.get("/")
     async def root():

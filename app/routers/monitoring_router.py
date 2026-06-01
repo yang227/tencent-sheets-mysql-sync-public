@@ -63,8 +63,8 @@ async def get_overview() -> Dict[str, Any]:
                 "by_operation": dlq_stats.get("by_operation", {}),
             },
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "monitoring")
 
 
 @router.get("/sync/statistics")
@@ -98,8 +98,8 @@ async def get_sync_statistics(
             "config_id": config_id,
             "statistics": stats,
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "monitoring")
 
 
 @router.get("/api/statistics")
@@ -107,8 +107,8 @@ async def get_api_statistics() -> Dict[str, Any]:
     """获取API调用统计"""
     try:
         return metrics_collector.get_api_statistics()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "monitoring")
 
 
 @router.get("/performance/histograms")
@@ -120,8 +120,8 @@ async def get_performance_histograms() -> Dict[str, Any]:
         return {
             "histograms": all_metrics.get("histograms", {}),
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "monitoring")
 
 
 @router.get("/errors/statistics")
@@ -148,8 +148,8 @@ async def get_error_statistics(
             "period": period,
             "statistics": stats,
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "monitoring")
 
 
 @router.get("/dead-letter-queue")
@@ -173,8 +173,8 @@ async def get_dead_letter_queue(
             "total": len(items),
             "statistics": stats,
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "monitoring")
 
 
 @router.post("/dead-letter-queue/{index}/retry")
@@ -199,8 +199,8 @@ async def retry_dead_letter_item(index: int) -> Dict[str, Any]:
                 "success": False,
                 "message": "项目不存在或索引无效",
             }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "monitoring")
 
 
 @router.get("/audit/statistics")
@@ -208,8 +208,8 @@ async def get_audit_statistics() -> Dict[str, Any]:
     """获取审计统计"""
     try:
         return audit_logger.get_statistics()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "monitoring")
 
 
 @router.get("/audit/recent")
@@ -243,8 +243,8 @@ async def get_recent_audit_events(
             "events": events,
             "total": len(events),
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "monitoring")
 
 
 @router.get("/audit/by-resource/{resource_type}/{resource_id}")
@@ -274,8 +274,8 @@ async def get_audit_by_resource(
             "events": events,
             "total": len(events),
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "monitoring")
 
 
 @router.get("/metrics/summary")
@@ -297,8 +297,8 @@ async def get_metrics_summary() -> Dict[str, Any]:
             "gauges": all_metrics.get("gauges", {}),
             "histogram_count": len(all_metrics.get("histograms", {})),
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "monitoring")
 
 
 @router.get("/health")
@@ -355,8 +355,8 @@ async def get_health_status() -> Dict[str, Any]:
             },
             "timestamp": datetime.now().isoformat(),
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "monitoring")
 
 
 @router.get("/prometheus")
@@ -364,5 +364,5 @@ async def get_prometheus_metrics() -> str:
     """获取Prometheus格式的指标"""
     try:
         return metrics_collector.export_prometheus_format()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise handle_service_exception(exc, "monitoring")

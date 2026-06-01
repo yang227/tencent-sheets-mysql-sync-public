@@ -8,9 +8,10 @@ import logging
 
 from app.services.mysql_service import get_mysql_service
 from app.services.sync_engine import SyncEngine
+from app.services.db_exception import DatabaseServiceError, handle_service_exception
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/webhook/tencent", tags=["腾讯文档Webhook"])
+router = APIRouter(prefix="/webhook/tencent", tags=["Tencent Webhook"])
 
 
 async def verify_tencent_signature(
@@ -36,14 +37,16 @@ async def _webhook_sync_task(
     changed_range: str,
     direction: str,
 ) -> None:
-    """后台执行的 webhook 同步任务（由 asyncio.create_task 调度）"""
+    """Background webhook sync task (scheduled via asyncio.create_task)."""
     try:
         engine = SyncEngine(config_id=config_id)
         if direction in ("to_mysql", "bidirectional"):
             await engine.handle_webhook(event_type, changed_range)
-        logger.info(f"[Webhook background] Config {config_id} sync completed")
-    except Exception as e:
-        logger.exception(f"[Webhook background] Config {config_id} sync error: {e}")
+        logger.info("[Webhook background] Config %d sync completed", config_id)
+    except DatabaseServiceError as exc:
+        logger.error("[Webhook background] Config %d DB error: %s", config_id, exc)
+    except Exception as exc:
+        logger.exception("[Webhook background] Config %d sync error: %s", config_id, exc)
 
 
 @router.post("/callback")
@@ -60,13 +63,12 @@ async def handle_tencent_webhook(
     try:
         body = await request.body()
 
-        # Verify signature if token is configured
         from app.config import get_settings
         config = get_settings()
         token = config.tencent.callback_token or ""
         if token:
             if not await verify_tencent_signature(body, x_signature, x_timestamp, token):
-                raise HTTPException(status_code=403, detail="签名验证失败")
+                raise HTTPException(status_code=403, detail="Signature verification failed")
 
         data = json.loads(body)
         event_type = data.get("event", "")
@@ -74,21 +76,20 @@ async def handle_tencent_webhook(
         changed_range = data.get("changedRange", "")
 
         if not spreadsheet_id:
-            raise HTTPException(status_code=400, detail="缺少 spreadsheetId")
+            raise HTTPException(status_code=400, detail="Missing spreadsheetId")
 
         db = get_mysql_service()
         result = db.execute(
             "SELECT * FROM sync_configs WHERE spreadsheet_id = %s AND is_active = 1",
-            (spreadsheet_id,)
+            (spreadsheet_id,),
         )
 
         if not result:
-            raise HTTPException(status_code=404, detail="未找到对应配置")
+            raise HTTPException(status_code=404, detail="No matching sync config found")
 
         config_data = result[0]
         direction = config_data.get("sync_direction", "bidirectional")
 
-        # Fire-and-forget: 调度后台任务，立即返回 200
         asyncio.create_task(
             _webhook_sync_task(
                 config_id=config_data["id"],
@@ -97,13 +98,17 @@ async def handle_tencent_webhook(
                 direction=direction,
             )
         )
-        return {"status": "ok", "message": "已接收，正在处理"}
+        return {"status": "ok", "message": "Received, processing in background"}
 
     except HTTPException:
         raise
-    except Exception as e:
-        logger.exception(f"Webhook processing error: {e}")
-        raise HTTPException(status_code=500, detail=f"处理失败: {e}")
+    except DatabaseServiceError as exc:
+        raise handle_service_exception(exc, "tencent_webhook")
+    except json.JSONDecodeError as exc:
+        logger.error("Webhook JSON parse error: %s", exc)
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    except Exception as exc:
+        raise handle_service_exception(exc, "tencent_webhook")
 
 
 @router.get("/health")
