@@ -235,3 +235,7 @@ Related files:
 | `migrations/`  | Database init & migration scripts     |
 | `scripts/`     | Startup, deploy, and utility scripts  |
 | `tests/`       | Automated tests                       |
+
+## 9. License
+
+This project is licensed under the MIT License. See the LICENSE file in the repository root for details.

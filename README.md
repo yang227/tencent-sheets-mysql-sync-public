@@ -235,3 +235,7 @@ docker compose down
 - `migrations/`：数据库初始化与变更脚本
 - `scripts/`：本地启动、部署、验证脚本
 - `tests/`：自动化测试
+
+## 9. 开源协议
+
+本项目基于 MIT 协议开源，详见仓库根目录 LICENSE 文件。
