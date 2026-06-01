@@ -235,23 +235,3 @@ Related files:
 | `migrations/`  | Database init & migration scripts     |
 | `scripts/`     | Startup, deploy, and utility scripts  |
 | `tests/`       | Automated tests                       |
-
-## 9. Release Variants
-
-Three GitHub repository variants are maintained:
-
-| Variant   | Repository                                              | Contents                                           |
-|-----------|---------------------------------------------------------|----------------------------------------------------|
-| Private   | `yang227/tencent-sheets-mysql-sync-private`             | Full project including memory & internal docs       |
-| Public    | `yang227/tencent-sheets-mysql-sync-public`              | Public release without sensitive configs or memory  |
-| GitHub    | `yang227/tencent-sheets-mysql-sync-github`              | Minimal set of files for public distribution        |
-
-Generate all variants:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\create_project_variants.ps1
-```
-
-## License
-
-This project is provided as-is for internal enterprise use. See repository settings for license details.
