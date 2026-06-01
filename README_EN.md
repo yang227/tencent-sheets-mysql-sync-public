@@ -1,3 +1,5 @@
+English | [中文](./README.md)
+
 # Tencent Sheets – MySQL Sync Platform
 
 A bidirectional synchronization platform between [Tencent Docs](https://docs.qq.com/) online spreadsheets and MySQL, designed for enterprise internal use.
